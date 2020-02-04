@@ -1,0 +1,3 @@
+# CONFIG.py
+
+CCD = 'ZWO CCD ASI120MC-S'
