@@ -63,10 +63,10 @@ class IndiClient(PyIndi.BaseClient):
 		pass
 	# self.logger.info("new Light "+ lvp.name + " for device "+ lvp.device)
 	def newMessage(self, d, m):
-		self.logger.info("new Message "+ d.messageQueue(m))
-		
+		#self.logger.info("new Message "+ d.messageQueue(m))
+		pass
 	def serverConnected(self):
-		print("Server connected ("+self.getHost()+":"+str(self.getPort())+")")
+		self.logger.infi("Server connected ("+self.getHost()+":"+str(self.getPort())+")")
 	def serverDisconnected(self, code):
 		self.logger.info("Server disconnected (exit code = "+str(code)+","+str(self.getHost())+":"+str(self.getPort())+")")
 	def takeExposure(self):

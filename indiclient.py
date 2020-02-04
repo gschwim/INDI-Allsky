@@ -41,7 +41,7 @@ class IndiClient(PyIndi.BaseClient):
     def newDevice(self, d):
         pass
     def newProperty(self, p):
-        pass
+        print('PROPERTY: {}'.format(p.getName()))
     def removeProperty(self, p):
         pass
     def newBLOB(self, bp):
