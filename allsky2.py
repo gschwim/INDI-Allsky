@@ -8,18 +8,26 @@ class IndiClient(PyIndi.BaseClient):
  
 	device = None
  
-	def __init__(self):
+	def __init__(self, pacing=30, converge_to=0.75):
 		super(IndiClient, self).__init__()
 		self.logger = logging.getLogger('PyQtIndi.IndiClient')
 		# self.logger.info('creating an instance of PyQtIndi.IndiClient')
 
+		# pacing - how often an image is produced regardless of the exposure length
+		self.pacing = pacing
+
+		# TODO - minimum exposure needs to be read from the camera
 		self.exptime = 0.000064 # start low and go up
+		self.expConverged = False
+		self.convergeTo = converge_to
+
 	def newDevice(self, d):
 		# self.logger.info("new device " + d.getDeviceName())
 		if 'CCD' in d.getDeviceName():
 			# self.logger.info("Set new device CCD!")
 			# save reference to the device in member variable
 			self.device = d
+
 	def newProperty(self, p):
 		# self.logger.info("new property "+ p.getName() + " for device "+ p.getDeviceName())
 		if self.device is not None and p.getName() == "CONNECTION" and p.getDeviceName() == self.device.getDeviceName():
@@ -31,9 +39,11 @@ class IndiClient(PyIndi.BaseClient):
 		if p.getName() == "CCD_EXPOSURE":
 			# take first exposure
 			self.takeExposure()
+
 	def removeProperty(self, p):
 		# self.logger.info("remove property "+ p.getName() + " for device "+ p.getDeviceName())
 		pass
+
 	def newBLOB(self, bp):
 		self.logger.info("new BLOB "+ bp.name)
 		# get image data
@@ -53,22 +63,30 @@ class IndiClient(PyIndi.BaseClient):
 	def newSwitch(self, svp):
 		pass
 	# self.logger.info ("new Switch "+ svp.name + " for device "+ svp.device)
+
 	def newNumber(self, nvp):
 		pass
 		# self.logger.info("new Number "+ nvp.name + " for device "+ nvp.device)
+
 	def newText(self, tvp):
 		pass
 	# self.logger.info("new Text "+ tvp.name + " for device "+ tvp.device)
+
 	def newLight(self, lvp):
 		pass
 	# self.logger.info("new Light "+ lvp.name + " for device "+ lvp.device)
+
 	def newMessage(self, d, m):
 		#self.logger.info("new Message "+ d.messageQueue(m))
 		pass
+
 	def serverConnected(self):
-		self.logger.infi("Server connected ("+self.getHost()+":"+str(self.getPort())+")")
+		self.logger.info("Server connected ("+self.getHost()+":"+str(self.getPort())+")")
+
 	def serverDisconnected(self, code):
-		self.logger.info("Server disconnected (exit code = "+str(code)+","+str(self.getHost())+":"+str(self.getPort())+")")
+		self.logger.info("Server disconnected (exit code = "
+						 +str(code)+","+str(self.getHost())+":"+str(self.getPort())+")")
+
 	def takeExposure(self):
 		self.logger.info(">>>>>>>>")
 		#get current exposure time
@@ -77,10 +95,21 @@ class IndiClient(PyIndi.BaseClient):
 		# etime = 1.0
 		exp[0].value = self.exptime
 		# send new exposure time to server/device
+
+		# pacing goes here, wait to expose!
+		if self.expConverged:
+			pacetime = self.pacing - self.exptime
+		else:
+			self.logger.info('Rapid converging...')
+			pacetime = 0.5
+
+		self.logger.info('Pacing for {} seconds...'.format(pacetime))
+		sleep(pacetime)
+
 		self.logger.info('Exposing: {}'.format(self.exptime))
 		self.sendNewNumber(exp)
-		# print('Sleeping {}'.format(etime + 10))
-		# time.sleep(etime+10)
+
+
 	def processImage(self, blobfile):
 
 		# turn blob into an astropy.io.fits object
@@ -94,14 +123,26 @@ class IndiClient(PyIndi.BaseClient):
 
 		# get the median of the image
 		imgMedian = np.median(img)
-		self.logger.info('Image median: {}'.format(imgMedian))
+		imgMean = np.mean(img)
+		self.logger.info('Image median: {} mean: {}'.format(imgMedian, imgMean))
 
-		newExptime = 1100 / (imgMedian / self.exptime)
+		# test to see if we're nearly converged
+		# if so, set it as such
+		if imgMedian > (2000 * self.convergeTo):
+			self.expConverged = True
+		else:
+			self.expConverged = False
+
+
+		newExptime = 2000 / (imgMedian / self.exptime)
 
 		if newExptime < 0.000064:
 			newExptime = 0.000064
 		
 		self.exptime = newExptime
+		self.logger.info('New exposure time: {}'.format(newExptime))
+		self.logger.info('This exposure: {} Next Exposure: {} Median: {} Mean: {}'
+						 .format(exptime, newExptime, imgMedian, imgMean))
 
 		f = open('log.txt', 'a+')
 		log = '{},{},{}\n'.format(exptime, self.exptime, imgMedian)
@@ -116,8 +157,10 @@ if __name__ == '__main__':
 	 
 	# instantiate the client
 	indiclient=IndiClient()
+
 	# set indi server localhost and port 7624
 	indiclient.setServer("localhost",7624)
+
 	# connect to indi server
 	print("Connecting to indiserver")
 	if (not(indiclient.connectServer())):
@@ -128,6 +171,6 @@ if __name__ == '__main__':
 	sleep(indiclient.exptime + 3) 
 	# indiclient.disconnectServer()
 	# start endless loop, client works asynchron in background
-	#while True:
-	#    time.sleep(10)
+	while True:
+	   time.sleep(10)
 	

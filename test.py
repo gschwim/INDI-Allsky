@@ -3,6 +3,7 @@ import sys
 import time
 import logging
 from indiclient import IndiClient
+import PyIndi
 
 # Fancy printing of INDI states
 # Note that all INDI constants are accessible from the module as PyIndi.CONSTANTNAME
