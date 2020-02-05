@@ -3,15 +3,23 @@ import PyIndi
 from astropy.io import fits
 import numpy as np
 from time import sleep
+import io
   
 class IndiClient(PyIndi.BaseClient):
  
 	device = None
  
-	def __init__(self, pacing=30, converge_to=0.75):
+	def __init__(self, pacing=30, expose_to=2000, converge_at=0.75, master_bias=None, master_dark=None):
 		super(IndiClient, self).__init__()
 		self.logger = logging.getLogger('PyQtIndi.IndiClient')
 		# self.logger.info('creating an instance of PyQtIndi.IndiClient')
+
+		# master frames. Need to add a library capability to this.
+		self.masterBias = master_bias
+		self.masterDark = master_dark
+
+		# median background target
+		self.exposeTarget = expose_to
 
 		# pacing - how often an image is produced regardless of the exposure length
 		self.pacing = pacing
@@ -19,7 +27,7 @@ class IndiClient(PyIndi.BaseClient):
 		# TODO - minimum exposure needs to be read from the camera
 		self.exptime = 0.000064 # start low and go up
 		self.expConverged = False
-		self.convergeTo = converge_to
+		self.convergeAt = converge_at
 
 	def newDevice(self, d):
 		# self.logger.info("new device " + d.getDeviceName())
@@ -45,18 +53,18 @@ class IndiClient(PyIndi.BaseClient):
 		pass
 
 	def newBLOB(self, bp):
-		self.logger.info("new BLOB "+ bp.name)
+		# self.logger.info("new BLOB "+ bp.name)
 		# get image data
 		img = bp.getblobdata()
 		# write image data to BytesIO buffer
-		import io
-		blobfile = io.BytesIO(img)
+		# import io
+		self.fit = io.BytesIO(img)
 		# open a file and save buffer to disk
 		with open("frame.fit", "wb") as f:
-			f.write(blobfile.getvalue())
+			f.write(self.fit.getvalue())
 
 		# process image for consumption
-		self.processImage(blobfile)
+		self.processImage()
 		# start new exposure
 		self.takeExposure()
 
@@ -110,25 +118,25 @@ class IndiClient(PyIndi.BaseClient):
 		self.sendNewNumber(exp)
 
 
-	def processImage(self, blobfile):
+	def processImage(self):
 
 		# turn blob into an astropy.io.fits object
-		fit = fits.open(blobfile)
+		fit = fits.open(self.fit)
 		img = fit[0].data.T
 		headers = fit[0].header
 
 		# get the exposure time
 		exptime = headers['EXPTIME']
-		self.logger.info('Exposure time found: {}'.format(exptime))
+		# self.logger.info('Exposure time found: {}'.format(exptime))
 
 		# get the median of the image
 		imgMedian = np.median(img)
 		imgMean = np.mean(img)
-		self.logger.info('Image median: {} mean: {}'.format(imgMedian, imgMean))
+		# self.logger.info('Image median: {} mean: {}'.format(imgMedian, imgMean))
 
 		# test to see if we're nearly converged
 		# if so, set it as such
-		if imgMedian > (2000 * self.convergeTo):
+		if imgMedian > (2000 * self.convergeAt):
 			self.expConverged = True
 		else:
 			self.expConverged = False
@@ -138,17 +146,41 @@ class IndiClient(PyIndi.BaseClient):
 
 		if newExptime < 0.000064:
 			newExptime = 0.000064
+
+		if newExptime > 30:
+			newExptime = 30
 		
 		self.exptime = newExptime
-		self.logger.info('New exposure time: {}'.format(newExptime))
+		# self.logger.info('New exposure time: {}'.format(newExptime))
 		self.logger.info('This exposure: {} Next Exposure: {} Median: {} Mean: {}'
 						 .format(exptime, newExptime, imgMedian, imgMean))
 
-		f = open('log.txt', 'a+')
+		f = open('log.log', 'a+')
 		log = '{},{},{}\n'.format(exptime, self.exptime, imgMedian)
 		f.write(log)
 		f.close()
 
+	def calibrateImage(self):
+
+		# TODO - scale the master dark
+		if self.masterBias is not None:
+			if self.masterDark is not None:
+				# create a single combined master
+				self.masterCalibrator = None
+			else:
+				# assign only the bias to it
+				self.masterCalibrator = None
+		elif self.masterDark is not None:
+			# only a master dark
+			self.masterCalibrator = None
+
+		# clear out the master bias and dark
+		self.masterBias = None
+		self.masterDark = None
+
+
+		# TODO calibrate the light frame
+		pass
 
 
 if __name__ == '__main__':
