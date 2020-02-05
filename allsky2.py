@@ -9,7 +9,10 @@ class IndiClient(PyIndi.BaseClient):
  
 	device = None
  
-	def __init__(self, pacing=30, expose_to=2000, converge_at=0.75, master_bias=None, master_dark=None):
+	def __init__(self, min_exp=0.000064, max_exp=30.0, pacing=30,
+				 expose_to=2000, converge_at=0.75,
+				 master_bias=None, master_dark=None):
+
 		super(IndiClient, self).__init__()
 		self.logger = logging.getLogger('PyQtIndi.IndiClient')
 		# self.logger.info('creating an instance of PyQtIndi.IndiClient')
@@ -18,6 +21,10 @@ class IndiClient(PyIndi.BaseClient):
 		self.masterBias = master_bias
 		self.masterDark = master_dark
 
+		# min/max exposure times
+		self.minExp = min_exp
+		self.maxExp = max_exp
+
 		# median background target
 		self.exposeTarget = expose_to
 
@@ -25,7 +32,7 @@ class IndiClient(PyIndi.BaseClient):
 		self.pacing = pacing
 
 		# TODO - minimum exposure needs to be read from the camera
-		self.exptime = 0.000064 # start low and go up
+		self.expTime = self.minExp # start low and go up
 		self.expConverged = False
 		self.convergeAt = converge_at
 
@@ -101,12 +108,12 @@ class IndiClient(PyIndi.BaseClient):
 		exp = self.device.getNumber("CCD_EXPOSURE")
 		# set exposure time to 5 seconds
 		# etime = 1.0
-		exp[0].value = self.exptime
+		exp[0].value = self.expTime
 		# send new exposure time to server/device
 
 		# pacing goes here, wait to expose!
 		if self.expConverged:
-			pacetime = self.pacing - self.exptime
+			pacetime = self.pacing - self.expTime
 		else:
 			self.logger.info('Rapid converging...')
 			pacetime = 0.5
@@ -114,7 +121,7 @@ class IndiClient(PyIndi.BaseClient):
 		self.logger.info('Pacing for {} seconds...'.format(pacetime))
 		sleep(pacetime)
 
-		self.logger.info('Exposing: {}'.format(self.exptime))
+		self.logger.info('Exposing: {}'.format(self.expTime))
 		self.sendNewNumber(exp)
 
 
@@ -126,7 +133,7 @@ class IndiClient(PyIndi.BaseClient):
 		headers = fit[0].header
 
 		# get the exposure time
-		exptime = headers['EXPTIME']
+		oldExpTime = headers['EXPTIME']
 		# self.logger.info('Exposure time found: {}'.format(exptime))
 
 		# get the median of the image
@@ -141,46 +148,60 @@ class IndiClient(PyIndi.BaseClient):
 		else:
 			self.expConverged = False
 
+		newExptime = 2000 / (imgMedian / oldExpTime)
 
-		newExptime = 2000 / (imgMedian / self.exptime)
+		if newExptime < self.minExp:
+			newExptime = self.minExp
 
-		if newExptime < 0.000064:
-			newExptime = 0.000064
-
-		if newExptime > 30:
-			newExptime = 30
+		if newExptime > self.maxExp:
+			newExptime = self.maxExp
 		
-		self.exptime = newExptime
+		self.expTime = newExptime
 		# self.logger.info('New exposure time: {}'.format(newExptime))
 		self.logger.info('This exposure: {} Next Exposure: {} Median: {} Mean: {}'
-						 .format(exptime, newExptime, imgMedian, imgMean))
+						 .format(oldExpTime, newExptime, imgMedian, imgMean))
 
 		f = open('log.log', 'a+')
-		log = '{},{},{}\n'.format(exptime, self.exptime, imgMedian)
+		log = '{},{},{}\n'.format(oldExpTime, self.expTime, imgMedian)
 		f.write(log)
 		f.close()
 
+		# calbrate
+
+		# convert to color
+		# img_color = cv2.cvtColor(img, cv2.COLOR_BAYER_GR2RGB)
+
+		# stretch
+
+		# put the file somewhere
+		# cv2.imwrite('last.jpg', img_color)
+
 	def calibrateImage(self):
 
-		# TODO - scale the master dark
-		if self.masterBias is not None:
-			if self.masterDark is not None:
-				# create a single combined master
+		if self.masterCalibrator is None:
+
+
+			# TODO - scale the master dark
+			if self.masterBias is not None:
+				if self.masterDark is not None:
+					# create a single combined master
+					self.masterCalibrator = None
+				else:
+					# assign only the bias to it
+					self.masterCalibrator = None
+			elif self.masterDark is not None:
+				# only a master dark
 				self.masterCalibrator = None
-			else:
-				# assign only the bias to it
-				self.masterCalibrator = None
-		elif self.masterDark is not None:
-			# only a master dark
-			self.masterCalibrator = None
 
-		# clear out the master bias and dark
-		self.masterBias = None
-		self.masterDark = None
+			# clear out the master bias and dark
+			self.masterBias = None
+			self.masterDark = None
 
 
-		# TODO calibrate the light frame
-		pass
+			# TODO calibrate the light frame
+
+
+
 
 
 if __name__ == '__main__':
@@ -200,7 +221,7 @@ if __name__ == '__main__':
 		 print("  indiserver indi_simulator_telescope indi_simulator_ccd")
 		 sys.exit(1)
 
-	sleep(indiclient.exptime + 3) 
+	sleep(indiclient.expTime + 3) 
 	# indiclient.disconnectServer()
 	# start endless loop, client works asynchron in background
 	while True:
