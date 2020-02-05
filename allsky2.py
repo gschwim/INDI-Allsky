@@ -4,6 +4,8 @@ from astropy.io import fits
 import numpy as np
 from time import sleep
 import io
+import cv2
+import datetime
   
 class IndiClient(PyIndi.BaseClient):
  
@@ -129,7 +131,7 @@ class IndiClient(PyIndi.BaseClient):
 
 		# turn blob into an astropy.io.fits object
 		fit = fits.open(self.fit)
-		img = fit[0].data.T
+		img = fit[0].data
 		headers = fit[0].header
 
 		# get the exposure time
@@ -168,13 +170,32 @@ class IndiClient(PyIndi.BaseClient):
 
 		# calbrate
 
+
+
 		# convert to color
-		# img_color = cv2.cvtColor(img, cv2.COLOR_BAYER_GR2RGB)
+		img_color = cv2.cvtColor(img, cv2.COLOR_BAYER_GR2RGB)
+
+		# annotate
+		timestamp = '12:00:00 PM'
+		font = cv2.FONT_HERSHEY_SIMPLEX
+		bottomRightCorner = (1200, 950)
+		fontScale = .5
+		fontColor = (65535, 65535, 65535)
+		lineThickness = 2
+
+		cv2.putText(
+			img_color,
+			datetime.datetime.now().strftime('%I:%M:%S %p'),
+			bottomRightCorner,
+			font,
+			fontScale,
+			fontColor,
+			lineThickness)
 
 		# stretch
 
 		# put the file somewhere
-		# cv2.imwrite('last.jpg', img_color)
+		cv2.imwrite('color.png', img_color)
 
 	def calibrateImage(self):
 
