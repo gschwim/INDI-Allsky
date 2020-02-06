@@ -1,0 +1,22 @@
+# allsky_indiclient.service
+
+
+[Unit]
+Description = Allsky Camera INDI Client
+After = network.target
+
+[Service]
+PermissionsStartOnly = true
+User = allsky
+Group = allsky
+WorkingDirectory = /opt/allsky/indiclient
+ExecStart = /usr/bin/env /usr/bin/python3 /opt/allsky/indiclient/allsky.py
+#ExecReload = /bin/killall -s HUP 
+#ExecStop = /bin/kill -s TERM indiserver
+PrivateTmp = true
+
+[Install]
+WantedBy = multi-user.target
+
+
+

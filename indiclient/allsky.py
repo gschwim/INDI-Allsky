@@ -167,7 +167,7 @@ class IndiClient(PyIndi.BaseClient):
 		self.logger.info('This exposure: {} Next Exposure: {} Median: {} Mean: {}'
 						 .format(oldExpTime, newExptime, imgMedian, imgMean))
 
-		f = open('log.log', 'a+')
+		f = open('/dev/shm/allsky.log', 'a+')
 		log = '{},{},{}\n'.format(oldExpTime, self.expTime, imgMedian)
 		f.write(log)
 		f.close()

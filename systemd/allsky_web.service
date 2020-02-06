@@ -1,0 +1,30 @@
+# allsky_cam.service
+# Place this in /etc/systemd/system then 
+#    chmod 755 allsky_cam.service
+#    sudo systemctl daemon-reload
+#    sudo systemctl enable allsky_cam.service
+#    sudo systemctl start allsky_cam.service
+
+[Unit]
+Description = Allsky Camera Web Server
+After = network.target
+
+[Service]
+PermissionsStartOnly = true
+PIDFile = /run/allsky/allsky_web.pid
+User = allsky
+Group = allsky
+WorkingDirectory = /opt/allsky/flask
+ExecStartPre = /bin/mkdir /run/allsky
+ExecStartPre = /bin/chown -R allsky:allsky /run/allsky
+ExecStart = /usr/bin/env gunicorn3 server:app --bind='0.0.0.0:8000' --workers=2 --pid='/run/allsky/allsky_web.pid'
+ExecReload = /bin/kill -s HUP $MAINPID
+ExecStop = /bin/kill -s TERM $MAINPID
+ExecStopPost = /bin/rm -rf /run/allsky
+PrivateTmp = true
+
+[Install]
+WantedBy = multi-user.target
+
+
+
