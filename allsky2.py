@@ -175,14 +175,20 @@ class IndiClient(PyIndi.BaseClient):
 		# convert to color
 		img_color = cv2.cvtColor(img, cv2.COLOR_BAYER_GR2RGB)
 
+		# stretch - gamma correction
+		img_color = np.array(65535*(img_color / 65535) ** 0.45, dtype = 'uint16')
+
 		# annotate
 		timestamp = '12:00:00 PM'
 		font = cv2.FONT_HERSHEY_SIMPLEX
-		bottomRightCorner = (1200, 950)
-		fontScale = .5
+		bottomRightCorner = (1115, 950)
+		upperRightCorner1 = (990, 30)
+		upperRightCorner2 = (1025, 60)
+		fontScale = .8
 		fontColor = (65535, 65535, 65535)
 		lineThickness = 2
 
+		# annotate time
 		cv2.putText(
 			img_color,
 			datetime.datetime.now().strftime('%I:%M:%S %p'),
@@ -192,10 +198,32 @@ class IndiClient(PyIndi.BaseClient):
 			fontColor,
 			lineThickness)
 
-		# stretch
+		# annotate time
+		cv2.putText(
+			img_color,
+			'Exposure: {0:.4f} sec'.format(oldExpTime),
+			upperRightCorner1,
+			font,
+			fontScale,
+			fontColor,
+			lineThickness)		
+
+
+		# annotate time
+		cv2.putText(
+			img_color,
+			'Sky Median: {0:.1f}'.format(imgMedian),
+			upperRightCorner2,
+			font,
+			fontScale,
+			fontColor,
+			lineThickness)
+
+
 
 		# put the file somewhere
-		cv2.imwrite('color.png', img_color)
+		img_color = (img_color/256).astype('uint8')
+		cv2.imwrite('/dev/shm/color.png', img_color, [cv2.IMWRITE_PNG_COMPRESSION, 5]) # 
 
 	def calibrateImage(self):
 
