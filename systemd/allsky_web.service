@@ -17,7 +17,7 @@ Group = allsky
 WorkingDirectory = /opt/allsky/flask
 ExecStartPre = /bin/mkdir /run/allsky
 ExecStartPre = /bin/chown -R allsky:allsky /run/allsky
-ExecStart = /usr/bin/env gunicorn3 server:app --bind='0.0.0.0:8000' --workers=2 --pid='/run/allsky/allsky_web.pid'
+ExecStart = /usr/bin/env gunicorn3 server:app --bind='0.0.0.0:8888' --workers=2 --pid='/run/allsky/allsky_web.pid'
 ExecReload = /bin/kill -s HUP $MAINPID
 ExecStop = /bin/kill -s TERM $MAINPID
 ExecStopPost = /bin/rm -rf /run/allsky
