@@ -20,8 +20,12 @@ class IndiClient(PyIndi.BaseClient):
 		# self.logger.info('creating an instance of PyQtIndi.IndiClient')
 
 		# master frames. Need to add a library capability to this.
+		self.logger.info('Calibration Frames - Bias: {} Dark: {}'
+						 .format(master_bias, master_dark))
 		self.masterBias = master_bias
 		self.masterDark = master_dark
+		self.masterCalibrator = None
+
 
 		# min/max exposure times
 		self.minExp = min_exp
@@ -69,7 +73,7 @@ class IndiClient(PyIndi.BaseClient):
 		# import io
 		self.fit = io.BytesIO(img)
 		# open a file and save buffer to disk
-		with open("frame.fit", "wb") as f:
+		with open('/dev/shm/frame.fit', 'wb') as f:
 			f.write(self.fit.getvalue())
 
 		# process image for consumption
@@ -168,9 +172,8 @@ class IndiClient(PyIndi.BaseClient):
 		f.write(log)
 		f.close()
 
-		# calbrate
-
-
+		# calbrate TODO
+		img = self.calibrateImage(img)
 
 		# convert to color
 		img_color = cv2.cvtColor(img, cv2.COLOR_BAYER_GR2RGB)
@@ -208,7 +211,6 @@ class IndiClient(PyIndi.BaseClient):
 			fontColor,
 			lineThickness)		
 
-
 		# annotate time
 		cv2.putText(
 			img_color,
@@ -219,16 +221,16 @@ class IndiClient(PyIndi.BaseClient):
 			fontColor,
 			lineThickness)
 
-
-
-		# put the file somewhere
+		# put the file in /dev/shm for sharing
 		img_color = (img_color/256).astype('uint8')
 		cv2.imwrite('/dev/shm/color.png', img_color, [cv2.IMWRITE_PNG_COMPRESSION, 5]) # 
 
-	def calibrateImage(self):
+	def calibrateImage(self, img):
 
+
+		# first determine if a master calibrator exists. If not,
+		# try to make it.
 		if self.masterCalibrator is None:
-
 
 			# TODO - scale the master dark
 			if self.masterBias is not None:
@@ -236,8 +238,12 @@ class IndiClient(PyIndi.BaseClient):
 					# create a single combined master
 					self.masterCalibrator = None
 				else:
-					# assign only the bias to it
-					self.masterCalibrator = None
+
+					bias = fits.open(self.masterBias)
+					bias = bias[0].data
+
+					self.masterCalibrator = bias
+
 			elif self.masterDark is not None:
 				# only a master dark
 				self.masterCalibrator = None
@@ -247,9 +253,14 @@ class IndiClient(PyIndi.BaseClient):
 			self.masterDark = None
 
 
-			# TODO calibrate the light frame
+		# now check to see if one exists. If so, use it.
+		if self.masterCalibrator is not None:
 
+			img = (img) - self.masterCalibrator
+			return img
 
+		else: # otherwise, just send the img back
+			return img
 
 
 
@@ -258,7 +269,9 @@ if __name__ == '__main__':
 	logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
 	 
 	# instantiate the client
+	# indiclient=IndiClient(master_bias='allsky_master_bias.fit')
 	indiclient=IndiClient()
+
 
 	# set indi server localhost and port 7624
 	indiclient.setServer("localhost",7624)

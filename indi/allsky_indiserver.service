@@ -1,0 +1,22 @@
+# allsky_indiserver.service
+
+
+[Unit]
+Description = Allsky Camera INDIServer
+After = network.target
+
+[Service]
+PermissionsStartOnly = true
+User = allsky
+Group = allsky
+WorkingDirectory = /opt/allsky/
+ExecStart = /usr/bin/env indiserver indi_asi_ccd
+ExecReload = /bin/killall -s HUP indiserver
+ExecStop = /bin/kill -s TERM indiserver
+PrivateTmp = true
+
+[Install]
+WantedBy = multi-user.target
+
+
+
