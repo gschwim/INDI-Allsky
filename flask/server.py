@@ -3,7 +3,7 @@ import io
 
 app = Flask(__name__)
 
-@app.route('/', methods=['GET'])
+@app.route('/live', methods=['GET'])
 def serveImage():
     file = '/dev/shm/color.png'
 

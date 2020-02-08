@@ -13,7 +13,8 @@ class IndiClient(PyIndi.BaseClient):
  
 	def __init__(self, min_exp=0.000064, max_exp=30.0, pacing=30,
 				 expose_to=2000, converge_at=0.75,
-				 master_bias=None, master_dark=None):
+				 master_bias=None, master_dark=None,
+				 resize_pct=100):
 
 		super(IndiClient, self).__init__()
 		self.logger = logging.getLogger('PyQtIndi.IndiClient')
@@ -25,6 +26,7 @@ class IndiClient(PyIndi.BaseClient):
 		self.masterBias = master_bias
 		self.masterDark = master_dark
 		self.masterCalibrator = None
+		self.resize_pct = resize_pct
 
 
 		# min/max exposure times
@@ -221,9 +223,15 @@ class IndiClient(PyIndi.BaseClient):
 			fontColor,
 			lineThickness)
 
-		# put the file in /dev/shm for sharing
 		img_color = (img_color/256).astype('uint8')
-		cv2.imwrite('/dev/shm/color.png', img_color, [cv2.IMWRITE_PNG_COMPRESSION, 5]) # 
+		new_width = int(img_color.shape[1] * self.resize_pct / 100)
+		new_height = int(img_color.shape[0] * self.resize_pct / 100)
+		img_color_resized = cv2.resize(img_color, (new_width, new_height), interpolation=cv2.INTER_AREA)
+
+		# put the file in /dev/shm for sharing
+
+		cv2.imwrite('/dev/shm/color.png', img_color_resized, [cv2.IMWRITE_PNG_COMPRESSION, 5]) 
+		cv2.imwrite('/dev/shm/color_orig.png', img_color, [cv2.IMWRITE_PNG_COMPRESSION, 5])
 
 	def calibrateImage(self, img):
 
@@ -270,7 +278,7 @@ if __name__ == '__main__':
 	 
 	# instantiate the client
 	# indiclient=IndiClient(master_bias='allsky_master_bias.fit')
-	indiclient=IndiClient()
+	indiclient=IndiClient(resize_pct=60)
 
 
 	# set indi server localhost and port 7624
@@ -279,8 +287,7 @@ if __name__ == '__main__':
 	# connect to indi server
 	print("Connecting to indiserver")
 	if (not(indiclient.connectServer())):
-		 print("No indiserver running on "+indiclient.getHost()+":"+str(indiclient.getPort())+" - Try to run")
-		 print("  indiserver indi_simulator_telescope indi_simulator_ccd")
+		 print("No indiserver running on "+indiclient.getHost()+":"+str(indiclient.getPort()))
 		 sys.exit(1)
 
 	sleep(indiclient.expTime + 3) 
