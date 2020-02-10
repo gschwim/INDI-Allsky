@@ -11,8 +11,8 @@ class IndiClient(PyIndi.BaseClient):
  
 	device = None
  
-	def __init__(self, min_exp=0.000064, max_exp=30.0, pacing=30,
-				 expose_to=2000, converge_at=0.75,
+	def __init__(self, min_exp=0.000064, max_exp=30.0, gain=30,
+				 pacing=30, expose_to=2000, converge_at=0.75,
 				 master_bias=None, master_dark=None,
 				 resize_pct=100):
 
@@ -32,6 +32,7 @@ class IndiClient(PyIndi.BaseClient):
 		# min/max exposure times
 		self.minExp = min_exp
 		self.maxExp = max_exp
+		self.gain = gain
 
 		# median background target
 		self.exposeTarget = expose_to
@@ -59,6 +60,10 @@ class IndiClient(PyIndi.BaseClient):
 			self.connectDevice(self.device.getDeviceName())
 			# set BLOB mode to BLOB_ALSO
 			self.setBLOBMode(1, self.device.getDeviceName(), None)
+
+		if self.device is not None and p.getName() == 'CCD_CONTROLS' and p.getDeviceName() == self.device.getDeviceName():
+			self.setCCDControls()
+
 		if p.getName() == "CCD_EXPOSURE":
 			# take first exposure
 			self.takeExposure()
@@ -270,6 +275,11 @@ class IndiClient(PyIndi.BaseClient):
 		else: # otherwise, just send the img back
 			return img
 
+	def setCCDControls(self):
+
+		controls = self.device.getNumber('CCD_CONTROLS')
+		controls[0].value = self.gain
+		self.sendNewNumber(controls)
 
 
 if __name__ == '__main__':
@@ -278,7 +288,7 @@ if __name__ == '__main__':
 	 
 	# instantiate the client
 	# indiclient=IndiClient(master_bias='allsky_master_bias.fit')
-	indiclient=IndiClient(resize_pct=60)
+	indiclient=IndiClient(resize_pct=60, gain=30)
 
 
 	# set indi server localhost and port 7624

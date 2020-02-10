@@ -48,23 +48,23 @@ for d in dlist:
         if p.getType() == PyIndi.INDI_TEXT:
             tpy = p.getText()
             for t in tpy:
-                print("       " + t.name + "(" + t.label + ")= " + t.text)
+                print("TEXT:       " + t.name + "(" + t.label + ")= " + t.text)
         elif p.getType()==PyIndi.INDI_NUMBER:
             tpy=p.getNumber()
             for t in tpy:
-                print("       "+t.name+"("+t.label+")= "+str(t.value))
+                print("NUMBER:       "+t.name+"("+t.label+")= "+str(t.value))
         elif p.getType()==PyIndi.INDI_SWITCH:
             tpy=p.getSwitch()
             for t in tpy:
-                print("       "+t.name+"("+t.label+")= "+strISState(t.s))
+                print("SWITCH:       "+t.name+"("+t.label+")= "+strISState(t.s))
         elif p.getType()==PyIndi.INDI_LIGHT:
             tpy=p.getLight()
             for t in tpy:
-                print("       "+t.name+"("+t.label+")= "+strIPState(t.s))
+                print("LIGHT:       "+t.name+"("+t.label+")= "+strIPState(t.s))
         elif p.getType()==PyIndi.INDI_BLOB:
             tpy=p.getBLOB()
             for t in tpy:
-                print("       "+t.name+"("+t.label+")= <blob "+str(t.size)+" bytes>")
+                print("BLOB:       "+t.name+"("+t.label+")= <blob "+str(t.size)+" bytes>")
 
 # Disconnect from the indiserver
 # print("Disconnecting")
