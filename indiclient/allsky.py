@@ -32,7 +32,8 @@ class IndiClient(PyIndi.BaseClient):
 		# min/max exposure times
 		self.minExp = min_exp
 		self.maxExp = max_exp
-		self.gain = gain
+		self.startingGain = gain
+		self.gain = self.startingGain
 
 		# median background target
 		self.exposeTarget = expose_to
@@ -62,6 +63,7 @@ class IndiClient(PyIndi.BaseClient):
 			self.setBLOBMode(1, self.device.getDeviceName(), None)
 
 		if self.device is not None and p.getName() == 'CCD_CONTROLS' and p.getDeviceName() == self.device.getDeviceName():
+			sleep(1.0)
 			self.setCCDControls()
 
 		if p.getName() == "CCD_EXPOSURE":
@@ -161,7 +163,7 @@ class IndiClient(PyIndi.BaseClient):
 		else:
 			self.expConverged = False
 
-		newExptime = 2000 / (imgMedian / oldExpTime)
+		newExptime = 4000 / (imgMedian / oldExpTime)
 
 		if newExptime < self.minExp:
 			newExptime = self.minExp
@@ -171,8 +173,20 @@ class IndiClient(PyIndi.BaseClient):
 		
 		self.expTime = newExptime
 		# self.logger.info('New exposure time: {}'.format(newExptime))
-		self.logger.info('This exposure: {} Next Exposure: {} Median: {} Mean: {}'
-						 .format(oldExpTime, newExptime, imgMedian, imgMean))
+
+		lastGain = self.gain
+
+		if newExptime == self.minExp and imgMedian >= (4000*1.5):
+			# set the gain to 0
+			self.gain = 0
+		else:
+			self.gain = self.startingGain
+
+		self.setCCDControls()
+
+
+		self.logger.info('This exposure: {}@{} Next Exposure: {}@{} Median: {} Mean: {}'
+						 .format(oldExpTime, lastGain, newExptime, self.gain, imgMedian, imgMean))
 
 		f = open('/dev/shm/allsky.log', 'a+')
 		log = '{},{},{}\n'.format(oldExpTime, self.expTime, imgMedian)
@@ -288,7 +302,7 @@ if __name__ == '__main__':
 	 
 	# instantiate the client
 	# indiclient=IndiClient(master_bias='allsky_master_bias.fit')
-	indiclient=IndiClient(resize_pct=60, gain=30)
+	indiclient=IndiClient(resize_pct=60, gain=35)
 
 
 	# set indi server localhost and port 7624
