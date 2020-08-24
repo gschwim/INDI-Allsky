@@ -255,6 +255,9 @@ class IndiClient(PyIndi.BaseClient):
 	def calibrateImage(self, img):
 
 
+		# medianBlur is pretty good a dealing with hot pixels.
+		img = cv2.medianBlur(img, 3)
+
 		# first determine if a master calibrator exists. If not,
 		# try to make it.
 		if self.masterCalibrator is None:
